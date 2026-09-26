@@ -1,0 +1,79 @@
+ALISHBA ALI 26K-0621
+Research Report: CyberShield and File Handling in C
+Part 1: Researcher 1, CyberShield and the Concept of Files
+1.1 Background of the project
+CyberShield is a cybersecurity incident reporting and response management system. It allows users to report suspicious events, allows analysts to classify and investigate them, and records every action for accountability. The idea is modeled on professional incident response platforms used in real security operations.
+Incident response refers to the processes and technologies an organization uses to detect and respond to cyberthreats, breaches, and attacks, and a formal incident response plan enables security teams to limit or prevent damage. Research by IBM also found that organizations with an incident response team and formal response plans reduce the average cost of a data breach by almost half a million US dollars, which gives CyberShield a concrete real-world justification. 
+
+1.2 Study of existing systems
+
+TheHive is a purpose-built security case management platform covering the full incident lifecycle, from alert triage and case management to investigation and resolution, with every incident closed using a full audit trail. Its case management design centralizes alerts, incidents, tasks, and observables in one workspace with role-based collaboration, so that every analyst can see complete case history. 
+DFIR-IRIS, a collaborative incident response platform, treats cases as the spine of the system: assets, IOCs, tasks, evidence, and notes all live under one authoritative record with severity, ownership, and status visible at a glance, and every action leaves an audit trail recording who added what, when, and why. 
+CyberShield borrows the essential ideas from both systems and scales them down to a student-sized project: incident submission with unique IDs, classification and severity, analyst assignment, evidence and notes, and audit history.
+
+
+1.3 The concept of files in C
+
+
+So far, the programs written in our course store data only in variables, which live in main memory and disappear the moment the program ends. An incident response system cannot work this way: an incident record must survive after submission, must remain available during investigation, and must never be lost.
+A file is a named collection of related data stored permanently on a secondary storage device such as a hard disk. C treats a file as a stream, an abstract channel between the program and the storage device, and represents it in code through a pointer of type FILE *, declared in the stdio.h header. 
+C supports two main file types:
+•	Text files, where data is stored as human-readable characters. Suitable for incident logs, notes, and reports.
+•	Binary files, where data is stored exactly as it appears in memory, byte by byte. Suitable for compact, non-human-readable records such as attachment metadata.
+In CyberShield, files provide the persistence layer: each incident, its evidence description, and each audit entry are appended to files so that history is preserved across program runs, which mirrors how real platforms record that every action leaves an audit trail
+
+
+Azal Rahman 26K-0617
+Part 2: Researcher 2, Working with Files in C
+2.1 Opening and closing files
+File handling in C consists of create, open, read, write, and close operations, performed through functions such as fopen, fclose, fprintf, fscanf, fgets, fputs, fread, fwrite, fseek, and ftell. 
+A file is opened with:
+FILE *fp = fopen("incidents.txt", "a");
+The exact signature is FILE *fopen(const char *filename, const char *mode), and it returns NULL if the file cannot be opened. Therefore, every open must be checked:
+if (fp == NULL) {
+    perror("Could not open incidents file");
+    return 1;
+}
+2.2 File modes
+Mode	Meaning	CyberShield use
+"r"	Read; file must exist	Loading incident records for the dashboard
+"w"	Write; creates or truncates	Regenerating a clean report file
+"a"	Append; adds at the end	Logging new incidents and audit entries
+"r+"	Read and write	Updating an incident status in place
+"w+"	Read and write; truncates	Rebuilding a summary file
+"a+"	Read and append	Reading past history while adding new entries
+Appending b to any mode, such as "ab" or "rb", opens the file in binary mode. 
+2.3 Writing and reading data
+Formatted output uses fprintf, the file-based equivalent of printf; formatted input uses fscanf:
+fprintf(fp, "INC-2026-0001|%s|%s|%s|%s\n",
+        title, category, severity, status);
+
+fscanf(fp, "%[^|]|%[^|]|%[^|]|%[^|]|%s",
+       code, title, category, severity, status);
+For line-oriented reading, fgets is preferred because it prevents buffer overflow, which matters in a security-related project. For structured binary records, fwrite and fread transfer whole blocks of memory:
+struct Incident inc = {1, "Phishing", "High"};
+fwrite(&inc, sizeof(inc), 1, fp);
+2.4 Moving within a file
+fseek moves the file position pointer using SEEK_SET from the beginning, SEEK_CUR from the current position, or SEEK_END from the end, enabling random access to any record. ftell reports the current byte position, and rewind returns to the start. This lets an analyst jump directly to incident INC-2026-0004 instead of reading the whole file.
+2.5 Closing files and error handling
+fclose releases the file and flushes any buffered data to disk; skipping it risks losing the final writes. Error states can be inspected with ferror and feof, and reported with perror. 
+2.6 A minimal CyberShield demonstration in C
+#include <stdio.h>
+
+int main(void) {
+    FILE *fp = fopen("incidents.txt", "a");   /* audit-style append */
+    if (fp == NULL) {
+        perror("Cannot open incident database");
+        return 1;
+    }
+
+    fprintf(fp, "INC-2026-0001|Phishing|High|Submitted|analyst:Sarah\n");
+    fprintf(fp, "AUDIT|INC-2026-0001|created by user Alish\n");
+
+    fclose(fp);   /* flush and release */
+    return 0;
+}
+Each program run appends a new incident and its audit entry, so the file grows into a permanent, readable incident history.
+Conclusion
+Together, the two parts show that CyberShield is justified by real industry practice, incident response plans measurably reduce breach costs, and professional platforms such as TheHive and DFIR-IRIS organize work exactly through cases, severity, assignment, evidence, and audit trails, all of which depend on persistent storage. In C, files supply that persistence through fopen, stream-based reading and writing, random access with fseek and ftell, and disciplined error handling and closure, which is precisely the mechanism CyberShield would use to make every incident visible, accountable, and permanent.
+
